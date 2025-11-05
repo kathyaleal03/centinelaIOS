@@ -29,9 +29,22 @@
 		CF9A78D72EAD19BA005C6059 /* centinela SVUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "centinela SVUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CFF89CFA2EB90FDC006427F4 /* Exceptions for "centinela SV" folder in "centinela SV" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CF9A78BE2EAD19B8005C6059 /* centinela SV */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CF9A78C12EAD19B8005C6059 /* centinela SV */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CFF89CFA2EB90FDC006427F4 /* Exceptions for "centinela SV" folder in "centinela SV" target */,
+			);
 			path = "centinela SV";
 			sourceTree = "<group>";
 		};
@@ -43,6 +56,31 @@
 		CF9A78DA2EAD19BA005C6059 /* centinela SVUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "centinela SVUITests";
+			sourceTree = "<group>";
+		};
+		CF9A78EC2EAD1DB9005C6059 /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Models;
+			sourceTree = "<group>";
+		};
+		CF9A78FC2EAD1E73005C6059 /* ViewModels */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		CF9A79092EAD20B8005C6059 /* Views */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		CF9A791F2EAD21D1005C6059 /* Service */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Service;
+			sourceTree = "<group>";
+		};
+		CF9A79292EAD2275005C6059 /* Utils */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Utils;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +113,11 @@
 		CF9A78B62EAD19B8005C6059 = {
 			isa = PBXGroup;
 			children = (
+				CF9A79292EAD2275005C6059 /* Utils */,
+				CF9A791F2EAD21D1005C6059 /* Service */,
+				CF9A79092EAD20B8005C6059 /* Views */,
+				CF9A78FC2EAD1E73005C6059 /* ViewModels */,
+				CF9A78EC2EAD1DB9005C6059 /* Models */,
 				CF9A78C12EAD19B8005C6059 /* centinela SV */,
 				CF9A78D02EAD19BA005C6059 /* centinela SVTests */,
 				CF9A78DA2EAD19BA005C6059 /* centinela SVUITests */,
@@ -109,6 +152,11 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CF9A78C12EAD19B8005C6059 /* centinela SV */,
+				CF9A78EC2EAD1DB9005C6059 /* Models */,
+				CF9A78FC2EAD1E73005C6059 /* ViewModels */,
+				CF9A79092EAD20B8005C6059 /* Views */,
+				CF9A791F2EAD21D1005C6059 /* Service */,
+				CF9A79292EAD2275005C6059 /* Utils */,
 			);
 			name = "centinela SV";
 			packageProductDependencies = (
@@ -393,6 +441,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "centinela SV/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -430,6 +479,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "centinela SV/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
