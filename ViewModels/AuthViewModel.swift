@@ -53,8 +53,8 @@ class AuthViewModel: ObservableObject {
             "departamento": departamento
         ]
 
-        // Include region by id (backend expects integer id for region)
-        payload["region"] = region.id
+    // Include region by API value (backend may expect enum name like "Santa_Ana_Norte")
+    payload["region"] = region.apiValue
         do {
             let created = try await APIService.shared.registerUser(payload)
             // If backend returns created user or wrapper, adapt accordingly.
@@ -195,7 +195,7 @@ class AuthViewModel: ObservableObject {
         if let t = telefono { payload["telefono"] = t }
         if let d = departamento { payload["departamento"] = d }
         if let c = direccion { payload["ciudad"] = c }
-    if let r = region { payload["region"] = r.id }
+    if let r = region { payload["region"] = r.apiValue }
 
         do {
             let updated = try await APIService.shared.updateUser(userId: uid, payload: payload, token: token)

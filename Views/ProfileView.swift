@@ -3,34 +3,44 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
 
+    // Profile fields
     @State private var nombre: String = ""
     @State private var correo: String = ""
     @State private var telefono: String = ""
     @State private var departamento: String = ""
     @State private var ciudad: String = ""
     @State private var selectedRegion: Region? = nil
+
+    // UI state
     @State private var statusMessage: String = ""
     @State private var showLogoutAlert: Bool = false
+    @State private var isEditing: Bool = false
+    @State private var passwordMessage: String = ""
+
     // Password change fields
     @State private var currentPassword: String = ""
     @State private var newPassword: String = ""
     @State private var confirmPassword: String = ""
-    @State private var passwordMessage: String = ""
 
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("Información personal")) {
                     TextField("Nombre", text: $nombre)
+                        .disabled(!isEditing)
                     TextField("Correo", text: $correo)
                         .keyboardType(.emailAddress)
+                        .disabled(!isEditing)
                     TextField("Teléfono", text: $telefono)
                         .keyboardType(.phonePad)
+                        .disabled(!isEditing)
                 }
 
                 Section(header: Text("Ubicación")) {
                     TextField("Departamento", text: $departamento)
+                        .disabled(!isEditing)
                     TextField("Ciudad", text: $ciudad)
+                        .disabled(!isEditing)
                     Picker("Región", selection: Binding(get: {
                         selectedRegion ?? Region.norte
                     }, set: { new in
@@ -41,17 +51,45 @@ struct ProfileView: View {
                         Text("Este").tag(Region.este)
                         Text("Oeste").tag(Region.oeste)
                     }
+                    .disabled(!isEditing)
                 }
 
                 Section {
                     if authVM.cargando {
                         HStack { Spacer(); ProgressView(); Spacer() }
                     } else {
-                        Button(action: save) {
-                            Text("Guardar cambios")
-                                .frame(maxWidth: .infinity)
+                        if isEditing {
+                            HStack(spacing: 12) {
+                                Button(action: {
+                                    // Save and exit edit mode
+                                    save()
+                                    isEditing = false
+                                }) {
+                                    Text("Guardar cambios")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .disabled(!authVM.isAuthenticated)
+
+                                Button(action: {
+                                    // Cancel edits and reload original values
+                                    loadFromAuth()
+                                    isEditing = false
+                                }) {
+                                    Text("Cancelar")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .tint(.red)
+                            }
+                        } else {
+                            Button(action: {
+                                // Enter edit mode
+                                isEditing = true
+                            }) {
+                                Text("Editar perfil")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .disabled(!authVM.isAuthenticated)
                         }
-                        .disabled(!authVM.isAuthenticated)
                     }
 
                     if !authVM.mensajeError.isEmpty {
@@ -67,22 +105,25 @@ struct ProfileView: View {
                     }
                 }
 
-                Section(header: Text("Cambiar contraseña")) {
-                    SecureField("Contraseña actual (opcional)", text: $currentPassword)
-                    SecureField("Nueva contraseña", text: $newPassword)
-                    SecureField("Confirmar nueva contraseña", text: $confirmPassword)
+                // Show password section only when editing
+                if isEditing {
+                    Section(header: Text("Cambiar contraseña")) {
+                        SecureField("Contraseña actual (opcional)", text: $currentPassword)
+                        SecureField("Nueva contraseña", text: $newPassword)
+                        SecureField("Confirmar nueva contraseña", text: $confirmPassword)
 
-                    if !passwordMessage.isEmpty {
-                        Text(passwordMessage)
-                            .font(.caption)
-                            .foregroundColor(passwordMessage.contains("error") || passwordMessage.contains("Error") ? .red : .green)
-                    }
+                        if !passwordMessage.isEmpty {
+                            Text(passwordMessage)
+                                .font(.caption)
+                                .foregroundColor(passwordMessage.contains("error") || passwordMessage.contains("Error") ? .red : .green)
+                        }
 
-                    Button(action: changePasswordTapped) {
-                        Text("Cambiar contraseña")
-                            .frame(maxWidth: .infinity)
+                        Button(action: changePasswordTapped) {
+                            Text("Cambiar contraseña")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .disabled(!authVM.isAuthenticated || newPassword.isEmpty || confirmPassword.isEmpty)
                     }
-                    .disabled(!authVM.isAuthenticated || newPassword.isEmpty || confirmPassword.isEmpty)
                 }
 
                 Section {

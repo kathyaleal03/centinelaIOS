@@ -28,6 +28,18 @@ struct HomeView: View {
                 .padding(.horizontal)
                 .padding(.top, 10)
 
+                // Weather summary card
+                // Weather card navigates to detailed weather screen
+                NavigationLink(destination: WeatherDetailView()) {
+                    HStack {
+                        WeatherStatusView()
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(12)
+                            .padding(.horizontal)
+                    }
+                }
+
                 VStack(spacing: 18) {
                     // First action card
                     HStack {

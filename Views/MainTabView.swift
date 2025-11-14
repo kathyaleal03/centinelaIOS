@@ -18,6 +18,9 @@ struct MainTabView: View {
                 .tabItem { Label("Alertas", systemImage: "exclamationmark.triangle.fill") }
             MapViewWrapper()
                 .tabItem { Label("Mapa", systemImage: "map.fill") }
+            // Quick Weather tab
+            WeatherStatusView()
+                .tabItem { Label("Clima", systemImage: "cloud.sun.fill") }
             ReportsListView()
                 .tabItem { Label("Reportes", systemImage: "list.bullet") }
             EmergencyButtonView()

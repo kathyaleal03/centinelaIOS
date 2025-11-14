@@ -22,6 +22,17 @@ struct centinela_SVApp: App {
             .onAppear {
                 // Request notification permission on app launch
                 NotificationManager.shared.requestAuthorizationAndRegister()
+                // Debug: check weather API key presence
+                if WeatherAPI.apiKey.isEmpty {
+                    print("[App] Weather API key NOT found. Set OPENWEATHER_API_KEY in Info.plist or use WeatherAPI.setFallbackKey(_:) for testing.")
+                } else {
+                    print("[App] Weather API key present (length: \(WeatherAPI.apiKey.count))")
+                }
+                // Also accept API key from environment variables (useful for Xcode scheme Run env vars)
+                if let envKey = ProcessInfo.processInfo.environment["OPENWEATHER_API_KEY"], !envKey.isEmpty {
+                    WeatherAPI.setFallbackKey(envKey)
+                    print("[App] Weather API key loaded from environment variables (scheme)")
+                }
             }
         }
 
