@@ -1,6 +1,8 @@
 import Foundation
 import UserNotifications
+#if canImport(UIKit)
 import UIKit
+#endif
 
 final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
@@ -12,8 +14,12 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             DispatchQueue.main.async {
                 if granted {
+#if canImport(UIKit)
                     UIApplication.shared.registerForRemoteNotifications()
                     print("[NotificationManager] permiso otorgado para notificaciones remotas")
+#else
+                    print("[NotificationManager] permiso otorgado but UIApplication not available on this platform")
+#endif
                 } else {
                     print("[NotificationManager] permiso denegado: \(error?.localizedDescription ?? "sin error")")
                 }
@@ -32,6 +38,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func sendDeviceTokenToServer(_ token: Data, userId: Int?) {
         let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
         print("[NotificationManager] device token hex: \(tokenString)")
+        // Persist token locally so we can (re)attach it to a user later
+        Self.saveDeviceToken(tokenString)
+
         // Send to backend so it can push notifications later
         Task {
             do {
@@ -39,6 +48,40 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                 print("[NotificationManager] token enviado al servidor")
             } catch {
                 print("[NotificationManager] error enviando token: \(error)")
+            }
+        }
+    }
+
+    // Save the device token string to UserDefaults for later re-registration
+    private static let deviceTokenKey = "device_token_hex"
+
+    static func saveDeviceToken(_ token: String) {
+        UserDefaults.standard.set(token, forKey: deviceTokenKey)
+    }
+
+    static func getSavedDeviceToken() -> String? {
+        UserDefaults.standard.string(forKey: deviceTokenKey)
+    }
+
+    /// Register the saved device token with the server and optionally attach it to a userId.
+    /// Call this after successful login so the server can link the token to the authenticated user.
+    func registerSavedTokenWithServer(userId: Int?) {
+        guard let token = Self.getSavedDeviceToken() else {
+            // Provide more diagnostic information to help debug why the token is missing.
+            let raw = UserDefaults.standard.object(forKey: Self.deviceTokenKey)
+            print("[NotificationManager] no saved device token to register")
+            print("[NotificationManager] deviceTokenKey=\(Self.deviceTokenKey). UserDefaults value (raw): \(String(describing: raw))")
+            // Also provide a short dump of keys so we can see what was persisted
+            let keys = Array(UserDefaults.standard.dictionaryRepresentation().keys).sorted()
+            print("[NotificationManager] UserDefaults keys (sample): \(keys.prefix(20))")
+            return
+        }
+        Task {
+            do {
+                try await APIService.shared.registerDeviceToken(deviceToken: token, userId: userId)
+                print("[NotificationManager] saved token registered with server for userId=\(userId.map(String.init) ?? "nil")")
+            } catch {
+                print("[NotificationManager] failed to register saved token: \(error)")
             }
         }
     }

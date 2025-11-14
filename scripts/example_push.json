@@ -1,0 +1,16 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Nuevo reporte - Zona Centro",
+      "body": "Se ha creado un nuevo reporte: Inundación calle 5"
+    },
+    "sound": "default",
+    "badge": 1
+  },
+  "reporteId": 123,
+  "extra": {
+    "tipo": "inundacion",
+    "lat": 13.69294,
+    "lon": -89.21819
+  }
+}

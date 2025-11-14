@@ -13,7 +13,7 @@ struct ErrorHandler {
             switch apiError {
             case .invalidURL: return "URL inválida"
             case .requestFailed(let msg): return "Error servidor: \(msg)"
-            case .decodingError: return "Error procesando datos"
+            case .decodingError(_): return "Error procesando datos"
             }
         }
         return error.localizedDescription

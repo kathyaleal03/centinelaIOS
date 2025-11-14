@@ -53,11 +53,8 @@ class AuthViewModel: ObservableObject {
             "departamento": departamento
         ]
 
-        // Include region as API value (underscored) if present
-        let regionValue = region.apiValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !regionValue.isEmpty {
-            payload["region"] = regionValue
-        }
+        // Include region by id (backend expects integer id for region)
+        payload["region"] = region.id
         do {
             let created = try await APIService.shared.registerUser(payload)
             // If backend returns created user or wrapper, adapt accordingly.
@@ -73,7 +70,7 @@ class AuthViewModel: ObservableObject {
                 self.mensajeError = "Error al registrar: \(msg)"
             case .invalidURL:
                 self.mensajeError = "Error interno: URL inválida"
-            case .decodingError:
+            case .decodingError(_):
                 self.mensajeError = "Error interno: respuesta inesperada del servidor"
             }
             self.registroExitoso = false
@@ -92,8 +89,10 @@ class AuthViewModel: ObservableObject {
             self.user = resp.user
             // Backend may or may not return a token. Save only if present.
             if let t = resp.token, !t.isEmpty {
-                self.token = t
-                Self.saveToken(t)
+                // Trim whitespace and newlines which sometimes appear in server tokens
+                let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.token = trimmed
+                Self.saveToken(trimmed)
             } else {
                 self.token = nil
                 Self.clearToken()
@@ -101,6 +100,9 @@ class AuthViewModel: ObservableObject {
             Self.saveUser(resp.user)
             self.isAuthenticated = true
             self.mensajeError = ""
+
+            // After a successful login, re-register any saved device token so the backend can link it to this user
+            NotificationManager.shared.registerSavedTokenWithServer(userId: resp.user.id)
         } catch let apiError as APIError {
             // Surface server message when possible
             switch apiError {
@@ -108,7 +110,7 @@ class AuthViewModel: ObservableObject {
                 self.mensajeError = "Error al iniciar sesión: \(msg)"
             case .invalidURL:
                 self.mensajeError = "Error interno: URL inválida"
-            case .decodingError:
+            case .decodingError(_):
                 self.mensajeError = "Error interno: respuesta inesperada del servidor"
             }
             self.isAuthenticated = false
@@ -172,6 +174,101 @@ class AuthViewModel: ObservableObject {
 
         Task {
             await register(nombre: nombre, correo: correo, contrasena: contrasena, departamento: departamento, region: region, direccion: direccion)
+        }
+    }
+
+    // MARK: - Profile update
+    /// Update the current user's profile on the server and persist locally.
+    func updateProfile(nombre: String, correo: String, telefono: String?, departamento: String?, region: Region?, direccion: String?) async {
+        guard let uid = user?.id else {
+            self.mensajeError = "No hay usuario autenticado"
+            return
+        }
+
+        self.cargando = true
+        self.mensajeError = ""
+
+        var payload: [String:Any] = [
+            "nombre": nombre,
+            "correo": correo
+        ]
+        if let t = telefono { payload["telefono"] = t }
+        if let d = departamento { payload["departamento"] = d }
+        if let c = direccion { payload["ciudad"] = c }
+    if let r = region { payload["region"] = r.id }
+
+        do {
+            let updated = try await APIService.shared.updateUser(userId: uid, payload: payload, token: token)
+            // Update local state and persist
+            self.user = updated
+            Self.saveUser(updated)
+            self.mensajeError = ""
+        } catch let apiError as APIError {
+            switch apiError {
+            case .requestFailed(let msg):
+                self.mensajeError = "Error al actualizar: \(msg)"
+            case .invalidURL:
+                self.mensajeError = "Error interno: URL inválida"
+            case .decodingError(_):
+                self.mensajeError = "Error interno: respuesta inesperada del servidor"
+            }
+        } catch {
+            self.mensajeError = "Error al actualizar: \(error.localizedDescription)"
+        }
+
+        self.cargando = false
+    }
+
+    /// UI-friendly wrapper to call updateProfile from Views
+    func guardarCambios(nombre: String, correo: String, telefono: String?, departamento: String?, region: Region?, direccion: String?) {
+        Task {
+            await updateProfile(nombre: nombre, correo: correo, telefono: telefono, departamento: departamento, region: region, direccion: direccion)
+        }
+    }
+
+    // MARK: - Change password
+    /// Change the current authenticated user's password.
+    /// If `current` is provided it will be sent in the payload as `contrasenaActual` (some backends require verification).
+    func changePassword(current: String?, newPassword: String) async {
+        guard let uid = user?.id else {
+            self.mensajeError = "No hay usuario autenticado"
+            return
+        }
+
+        self.cargando = true
+        self.mensajeError = ""
+
+        var payload: [String:Any] = ["contrasena": newPassword]
+        if let cur = current, !cur.isEmpty {
+            payload["contrasenaActual"] = cur
+        }
+
+        do {
+            let updated = try await APIService.shared.updateUser(userId: uid, payload: payload, token: token)
+            // Update local user cache. The server may or may not return the contrasena field.
+            self.user = updated
+            Self.saveUser(updated)
+            self.mensajeError = ""
+        } catch let apiError as APIError {
+            switch apiError {
+            case .requestFailed(let msg):
+                self.mensajeError = "Error al cambiar contraseña: \(msg)"
+            case .invalidURL:
+                self.mensajeError = "Error interno: URL inválida"
+            case .decodingError(_):
+                self.mensajeError = "Error interno: respuesta inesperada del servidor"
+            }
+        } catch {
+            self.mensajeError = "Error al cambiar contraseña: \(error.localizedDescription)"
+        }
+
+        self.cargando = false
+    }
+
+    /// UI-friendly wrapper to call changePassword from Views
+    func cambiarContrasena(current: String?, nueva: String) {
+        Task {
+            await changePassword(current: current, newPassword: nueva)
         }
     }
 }

@@ -40,5 +40,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("[AppDelegate] failed to register remote notifications: \(error.localizedDescription)")
     }
+
+    // Called when a remote notification arrives (background or foreground) and optionally performs a background fetch
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        print("[AppDelegate] didReceiveRemoteNotification: \(userInfo)")
+        // Forward to NotificationManager if needed for additional handling
+        completionHandler(.noData)
+    }
 }
 

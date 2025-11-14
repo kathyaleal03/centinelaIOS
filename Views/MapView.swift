@@ -22,7 +22,8 @@ struct MapViewWrapper: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Map(coordinateRegion: $region, annotationItems: vm.reports) { report in
+                // Only annotate reports that have finite coordinates to avoid passing NaN to Map/CG
+                Map(coordinateRegion: $region, annotationItems: vm.reports.filter { $0.latitud.isFinite && $0.longitud.isFinite }) { report in
                     MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: report.latitud, longitude: report.longitud)) {
                         Button(action: {
                             selectedReport = report
@@ -71,7 +72,7 @@ struct MapViewWrapper: View {
             .navigationBarHidden(true)
             .onAppear {
                 vm.fetchReports(token: authVM.token)
-                if let loc = locationService.userLocation {
+                if let loc = locationService.userLocation, loc.latitude.isFinite && loc.longitude.isFinite {
                     region.center = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
                 }
             }
@@ -82,7 +83,7 @@ struct MapViewWrapper: View {
     }
     
     func recenterMap() {
-        if let loc = locationService.userLocation {
+        if let loc = locationService.userLocation, loc.latitude.isFinite && loc.longitude.isFinite {
             region.center = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
         }
     }

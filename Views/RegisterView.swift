@@ -37,12 +37,12 @@ struct RegisterView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         
                         Picker("Región", selection: $viewModel.region) {
-                            Text(Region.norte.nombre).tag(Region.norte)
-                            Text(Region.sur.nombre).tag(Region.sur)
-                            Text(Region.este.nombre).tag(Region.este)
-                            Text(Region.oeste.nombre).tag(Region.oeste)
+                            ForEach([Region.norte, Region.sur, Region.este, Region.oeste], id: \ .id) { r in
+                                Text(r.nombre).tag(r)
+                            }
                         }
-                        .pickerStyle(SegmentedPickerStyle())
+                        // Use a menu-style picker so long region names are visible instead of truncated segments
+                        .pickerStyle(MenuPickerStyle())
                         
                         TextField("Ciudad", text: $viewModel.direccion)
                             .textFieldStyle(RoundedBorderTextFieldStyle())

@@ -7,7 +7,9 @@
 
 import SwiftUI
 import CoreLocation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // Notification name used to notify other views when a report is created
 extension Notification.Name {
@@ -234,6 +236,8 @@ struct ReportView: View {
 
         // else if there's a selected image, upload it first then send payload with returned URL
         if let image = selectedImage {
+            // Diagnostic info to help debug upload issues
+            print("[ReportView] uploading image. size=\(image.size), scale=\(image.scale), hasCGImage=\(image.cgImage != nil), orientation=\(image.imageOrientation.rawValue)")
             ImageUploadService.shared.upload(image: image) { result in
                 switch result {
                 case .success(let urlString):

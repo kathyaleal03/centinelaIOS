@@ -12,6 +12,8 @@ struct MainTabView: View {
     
     var body: some View {
         TabView {
+            HomeView()
+                .tabItem { Label("Home", systemImage: "house.fill") }
             RegionAlertView()
                 .tabItem { Label("Alertas", systemImage: "exclamationmark.triangle.fill") }
             MapViewWrapper()
@@ -22,6 +24,8 @@ struct MainTabView: View {
                 .tabItem { Label("Emergencia", systemImage: "phone.fill") }
             CommunityView()
                 .tabItem { Label("Comunidad", systemImage: "person.3.fill") }
+            ProfileView()
+                .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
             InfoCenterView()
                 .tabItem { Label("Información", systemImage: "info.circle") }
         }

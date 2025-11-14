@@ -8,8 +8,20 @@
 import Foundation
 
 struct APIConstants {
-    // Point to local Spring Boot API (use your machine IP on the same LAN)
-    static let baseURL = "http://192.168.1.25:8080" // example: http://192.168.1.25:8080
+    // Base URL for the deployed cloud API (no trailing /api segment here;
+    // endpoints in the code already include the "/api/..." prefix)
+    static let baseURL = "http://192.168.43.132:8000"
     // Increase timeout temporarily for debugging slow or LAN servers
     static let timeout: TimeInterval = 60
+}
+
+// Cloudinary configuration - set these values before using Cloudinary uploads.
+// For unsigned uploads create an upload preset in your Cloudinary dashboard and set
+// `uploadPreset` to that preset's name. Do NOT commit secrets (API secret) to the repo.
+struct Cloudinary {
+    // Example: "my-cloud-name"
+    static let cloudName: String = "dizfzyxrf"
+    // Example: "unsigned_preset_name"
+    static let uploadPreset: String = "imagenes"
+    static var uploadURL: String { "https://api.cloudinary.com/v1_1/\(cloudName)/image/upload" }
 }

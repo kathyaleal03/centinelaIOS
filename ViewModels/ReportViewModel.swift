@@ -14,6 +14,9 @@ class ReportViewModel: ObservableObject {
     @Published var lastPosted: Report?
     @Published var error: String?
     @Published var sending = false
+    // Optional date range filters (set by UI). When nil, that bound is ignored.
+    @Published var startDate: Date? = nil
+    @Published var endDate: Date? = nil
     
     func postReport(report: Report, token: String?) {
         Task {
@@ -59,12 +62,45 @@ class ReportViewModel: ObservableObject {
     private func loadReports(token: String?) async {
         do {
             let list = try await APIService.shared.fetchReports(token: token)
+            // store raw list, but keep default ordering as most recent first when possible
             self.reports = list
             self.error = nil
         } catch {
             self.error = "Error cargando reportes: \(error.localizedDescription)"
             self.reports = []
         }
+    }
+
+    /// Return reports filtered by optional date range and (optionally) by type.
+    /// Results are sorted with most recent first when a fecha is available.
+    func filteredReports(type: String = "Todos") -> [Report] {
+        // Start with reports sorted by fecha (desc). If fecha missing, fall back to reporteId ordering (descending), else keep original order.
+        let sorted = reports.sorted { a, b in
+            if let da = a.fechaDate, let db = b.fechaDate {
+                return da > db
+            }
+            if let ra = a.reporteId, let rb = b.reporteId {
+                return ra > rb
+            }
+            return true
+        }
+
+        var filtered = sorted
+
+        if let start = startDate {
+            filtered = filtered.filter { ($0.fechaDate ?? Date.distantPast) >= Calendar.current.startOfDay(for: start) }
+        }
+        if let end = endDate {
+            // include entire end day
+            let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: end) ?? end
+            filtered = filtered.filter { ($0.fechaDate ?? Date.distantPast) <= endOfDay }
+        }
+
+        if type != "Todos" {
+            filtered = filtered.filter { $0.tipo == type }
+        }
+
+        return filtered
     }
 
     private func sendPayload(payload: [String:Any], token: String?) async {
