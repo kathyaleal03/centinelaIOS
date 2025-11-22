@@ -9,12 +9,7 @@ import Foundation
 import CoreLocation
 
 struct Report: Codable, Identifiable {
-    // Use an internal UUID for stable identity in SwiftUI collections.
-    // This is not part of the server payload and is excluded from Codable via CodingKeys.
-    let uuid: UUID = UUID()
-    
-
-    // Server-side numeric id (may be nil for transient objects). Mapped from JSON key "id".
+    // Server-side numeric id (may be nil for transient objects).
     var reporteId: Int?
     var usuarioId: Int?
     var usuario: User?
@@ -26,14 +21,22 @@ struct Report: Codable, Identifiable {
     var estado: String
     // fecha: ISO-8601 string returned by backend (e.g. "2025-11-13T12:34:56Z")
     var fecha: String?
-    
-    
 
-    // Provide Identifiable conformance using the internal uuid so SwiftUI has a stable identity
-    var id: UUID { uuid }
+    // Stable identity across network refreshes:
+    // - If the backend id exists, use it.
+    // - Otherwise, derive a deterministic key from immutable fields (tipo + descripcion + coords rounded).
+    var id: String {
+        if let rid = reporteId {
+            return "rid:\(rid)"
+        }
+        let lat = String(format: "%.5f", latitud)
+        let lon = String(format: "%.5f", longitud)
+        // Lowercase tipo and keep descripcion as-is to distinguish similar reports
+        return "tmp:\(tipo.lowercased())|\(descripcion)|\(lat)|\(lon)"
+    }
 
     enum CodingKeys: String, CodingKey {
-        // Server uses "reporteId" in its JSON payloads (not "id"). Map accordingly.
+        // Server uses "reporteId" in its JSON payloads. Map accordingly.
         case reporteId = "reporteId"
         case usuarioId
         case usuario
@@ -44,7 +47,6 @@ struct Report: Codable, Identifiable {
         case fotoUrl
         case estado
         case fecha
-        // note: uuid intentionally omitted so it's not encoded/decoded
     }
 }
 

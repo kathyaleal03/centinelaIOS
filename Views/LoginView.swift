@@ -15,6 +15,7 @@ struct LoginView: View {
     @State private var contrasena = ""
     @State private var isRegisterPresented = false
     @State private var loading = false
+    @State private var showingOnboarding = false
     
     var body: some View {
         NavigationView {
@@ -113,13 +114,25 @@ struct LoginView: View {
                 // Register link at bottom
                 HStack {
                     Spacer()
-                    NavigationLink(destination: RegisterView().environmentObject(authVM).environmentObject(locationService)) {
-                        HStack(spacing: 6) {
-                            Text("¿No tienes una cuenta?")
-                                .foregroundColor(.primary)
-                            Text("Regístrate")
-                                .foregroundColor(Color(#colorLiteral(red: 0.1176, green: 0.4235, blue: 0.6, alpha: 1)))
-                                .underline()
+                    VStack(spacing: 6) {
+                        NavigationLink(destination: RegisterView().environmentObject(authVM).environmentObject(locationService)) {
+                            HStack(spacing: 6) {
+                                Text("¿No tienes una cuenta?")
+                                    .foregroundColor(.primary)
+                                Text("Regístrate")
+                                    .foregroundColor(Color(#colorLiteral(red: 0.1176, green: 0.4235, blue: 0.6, alpha: 1)))
+                                    .underline()
+                            }
+                        }
+
+                        // Allow viewing the onboarding before logging in
+                        Button(action: { showingOnboarding = true }) {
+                            Text("Ver introducción")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                        .sheet(isPresented: $showingOnboarding) {
+                            OnboardingView()
                         }
                     }
                     Spacer()

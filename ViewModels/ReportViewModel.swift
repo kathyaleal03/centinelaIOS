@@ -14,6 +14,7 @@ class ReportViewModel: ObservableObject {
     @Published var lastPosted: Report?
     @Published var error: String?
     @Published var sending = false
+    @Published var loadingReports = false // Track loading state for ranking view and other consumers
     // Optional date range filters (set by UI). When nil, that bound is ignored.
     @Published var startDate: Date? = nil
     @Published var endDate: Date? = nil
@@ -59,15 +60,34 @@ class ReportViewModel: ObservableObject {
         }
     }
 
-    private func loadReports(token: String?) async {
+    // Async refresh function to allow awaiting in views (e.g. Ranking)
+    func refreshReports(token: String?) async {
+        loadingReports = true
+        defer { loadingReports = false }
         do {
             let list = try await APIService.shared.fetchReports(token: token)
-            // store raw list, but keep default ordering as most recent first when possible
             self.reports = list
             self.error = nil
+            print("[ReportViewModel] -> Loaded \(list.count) reports (refreshReports)")
         } catch {
             self.error = "Error cargando reportes: \(error.localizedDescription)"
             self.reports = []
+            print("[ReportViewModel] -> Failed to load reports: \(error)")
+        }
+    }
+
+    private func loadReports(token: String?) async {
+        loadingReports = true
+        defer { loadingReports = false }
+        do {
+            let list = try await APIService.shared.fetchReports(token: token)
+            self.reports = list
+            self.error = nil
+            print("[ReportViewModel] -> Loaded \(list.count) reports (loadReports)")
+        } catch {
+            self.error = "Error cargando reportes: \(error.localizedDescription)"
+            self.reports = []
+            print("[ReportViewModel] -> Failed to load reports: \(error)")
         }
     }
 

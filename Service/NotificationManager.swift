@@ -57,6 +57,21 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     static func saveDeviceToken(_ token: String) {
         UserDefaults.standard.set(token, forKey: deviceTokenKey)
+        print("[NotificationManager] saved device token to UserDefaults: \(token.prefix(8))...")
+
+        // If a user is already saved locally, try to register the token immediately.
+        // AuthViewModel is @MainActor so call it from an async Task and await the main-actor-isolated method.
+        Task {
+            if let savedUser = await AuthViewModel.getSavedUser() {
+                let userId = savedUser.id
+                do {
+                    try await APIService.shared.registerDeviceToken(deviceToken: token, userId: userId)
+                    print("[NotificationManager] saved token immediately registered with server for userId=\(userId)")
+                } catch {
+                    print("[NotificationManager] immediate registration failed: \(error)")
+                }
+            }
+        }
     }
 
     static func getSavedDeviceToken() -> String? {
@@ -66,24 +81,50 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     /// Register the saved device token with the server and optionally attach it to a userId.
     /// Call this after successful login so the server can link the token to the authenticated user.
     func registerSavedTokenWithServer(userId: Int?) {
-        guard let token = Self.getSavedDeviceToken() else {
-            // Provide more diagnostic information to help debug why the token is missing.
-            let raw = UserDefaults.standard.object(forKey: Self.deviceTokenKey)
-            print("[NotificationManager] no saved device token to register")
-            print("[NotificationManager] deviceTokenKey=\(Self.deviceTokenKey). UserDefaults value (raw): \(String(describing: raw))")
-            // Also provide a short dump of keys so we can see what was persisted
-            let keys = Array(UserDefaults.standard.dictionaryRepresentation().keys).sorted()
-            print("[NotificationManager] UserDefaults keys (sample): \(keys.prefix(20))")
-            return
-        }
-        Task {
-            do {
-                try await APIService.shared.registerDeviceToken(deviceToken: token, userId: userId)
-                print("[NotificationManager] saved token registered with server for userId=\(userId.map(String.init) ?? "nil")")
-            } catch {
-                print("[NotificationManager] failed to register saved token: \(error)")
+        // Try to fetch the token; if missing we'll retry a few times because of possible race between APNs callback and login
+        let maxAttempts = 3
+        var attempt = 0
+
+        func attemptRegister(after delay: TimeInterval) {
+            attempt += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                if let token = Self.getSavedDeviceToken() {
+                    Task {
+                        do {
+                            try await APIService.shared.registerDeviceToken(deviceToken: token, userId: userId)
+                            print("[NotificationManager] saved token registered with server for userId=\(userId.map(String.init) ?? "nil")")
+                        } catch {
+                            print("[NotificationManager] failed to register saved token: \(error)")
+                        }
+                    }
+                } else {
+                    if attempt < maxAttempts {
+                        let nextDelay = pow(2.0, Double(attempt - 1)) // 1s,2s,...
+                        print("[NotificationManager] no saved device token yet (attempt \(attempt)). Retrying in \(nextDelay)s")
+                        attemptRegister(after: nextDelay)
+                    } else {
+                        // Final diagnostic dump
+                        let raw = UserDefaults.standard.object(forKey: Self.deviceTokenKey)
+                        print("[NotificationManager] no saved device token to register after \(attempt) attempts")
+                        print("[NotificationManager] deviceTokenKey=\(Self.deviceTokenKey). UserDefaults value (raw): \(String(describing: raw))")
+                        let keys = Array(UserDefaults.standard.dictionaryRepresentation().keys).sorted()
+                        print("[NotificationManager] UserDefaults keys (sample): \(keys.prefix(30))")
+
+                        // Also print notification settings to help debugging on device
+                        UNUserNotificationCenter.current().getNotificationSettings { settings in
+                            // 'provisional' is not a property on UNNotificationSettings; check via authorizationStatus
+                            let authRaw = settings.authorizationStatus.rawValue
+                            let isProvisional = (settings.authorizationStatus == .provisional)
+                            let alertRaw = settings.alertSetting.rawValue
+                            print("[NotificationManager] notification settings: authStatus=\(authRaw), isProvisional=\(isProvisional), alertSetting=\(alertRaw)")
+                        }
+                    }
+                }
             }
         }
+
+        // Start first attempt immediately
+        attemptRegister(after: 0)
     }
 
     // Schedule a local notification (useful as a fallback or to show immediate feedback)

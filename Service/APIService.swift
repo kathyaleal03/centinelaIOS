@@ -178,8 +178,10 @@ class APIService {
     
     // Get alerts by region id (nuevo esquema usa region_id)
     func fetchAlerts(regionId: Int) async throws -> [AppAlert] {
-        let endpoint = "/api/alertas?region_id=\(regionId)"
-        return try await request(endpoint, method: "GET")
+        // The backend currently exposes GET /api/alertas/getAllAlert and GET /api/alertas/{id}.
+        // There is no supported query param `region_id` on the server controller you provided,
+        // so request the server's getAllAlert endpoint and let the client filter if needed.
+        return try await fetchAllAlerts()
     }
 
     // Backwards-compatible helper when caller has Region model
@@ -195,6 +197,65 @@ class APIService {
 
     func fetchRefuges(region: Region) async throws -> [Refuge] {
         return try await fetchRefuges(regionId: region.id)
+    }
+
+    // MARK: - Alertas (API controller endpoints)
+    // GET /api/alertas/getAllAlert
+    func fetchAllAlerts() async throws -> [AppAlert] {
+        let endpoint = "/api/alertas/getAllAlert"
+        return try await request(endpoint, method: "GET")
+    }
+
+    // POST /api/alertas/createAlert
+    func createAlert(_ payload: [String:Any]) async throws -> AppAlert {
+        let endpoint = "/api/alertas/createAlert"
+        guard let url = URL(string: APIConstants.baseURL + endpoint) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: APIConstants.timeout)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw APIError.requestFailed("HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1): \(body)")
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(AppAlert.self, from: data)
+    }
+
+    // PUT /api/alertas/{id}
+    func updateAlert(id: Int, payload: [String:Any]) async throws -> AppAlert {
+        let endpoint = "/api/alertas/\(id)"
+        guard let url = URL(string: APIConstants.baseURL + endpoint) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: APIConstants.timeout)
+        req.httpMethod = "PUT"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw APIError.requestFailed("HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1): \(body)")
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(AppAlert.self, from: data)
+    }
+
+    // DELETE /api/alertas/{id}
+    func deleteAlert(id: Int) async throws -> Bool {
+        let endpoint = "/api/alertas/\(id)"
+        guard let url = URL(string: APIConstants.baseURL + endpoint) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: APIConstants.timeout)
+        req.httpMethod = "DELETE"
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw APIError.requestFailed("HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1): \(body)")
+        }
+        return true
     }
     
     // Post report (multipart not implemented here - example uses JSON with fotoURL)
@@ -482,7 +543,67 @@ class APIService {
     }
     func postEmergency(payload: [String:Any], token: String?) async throws -> EmergencyResponse {
         let endpoint = "/api/emergencias"
+        guard let url = URL(string: APIConstants.baseURL + endpoint) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: APIConstants.timeout)
+        req.httpMethod = "POST"
+        if let token = token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body = try JSONSerialization.data(withJSONObject: payload)
-        return try await request(endpoint, method: "POST", body: body, token: token)
+        req.httpBody = body
+
+        // Logging
+        print("[APIService] -> Request: POST \(req.url?.absoluteString ?? "")")
+        print("[APIService] -> Headers: \(req.allHTTPHeaderFields ?? [:])")
+        if let s = String(data: body, encoding: .utf8) { print("[APIService] -> Body: \(s)") }
+
+        let start = Date()
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: req)
+        } catch {
+            if let urlErr = error as? URLError {
+                print("[APIService] POST /api/emergencias URLSession error: \(urlErr), code: \(urlErr.code.rawValue)")
+            } else {
+                let ns = error as NSError
+                print("[APIService] POST /api/emergencias URLSession error: domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription)")
+            }
+            throw error
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        print("[APIService] <- Response in \(String(format: "%.2fs", elapsed)) for \(req.url?.absoluteString ?? "")")
+
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let bodyString = String(data: data, encoding: .utf8) ?? ""
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[APIService] <- Non-2xx response (\(status)) for \(req.url?.absoluteString ?? ""): \(bodyString)")
+            throw APIError.requestFailed("HTTP \(status): \(bodyString)")
+        }
+
+        // If server returned empty body, assume success
+        if data.count == 0 {
+            print("[APIService] <- Empty response body for /api/emergencias; returning success")
+            return EmergencyResponse(success: true, message: nil)
+        }
+
+        // Try decode into EmergencyResponse first, then try Emergencia (created object), else return success with raw body as message
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
+        if let er = try? decoder.decode(EmergencyResponse.self, from: data) {
+            return er
+        }
+
+        if let created = try? decoder.decode(Emergencia.self, from: data) {
+            // Server returned the created Emergencia; map to EmergencyResponse
+            let msg = created.id.flatMap { "created id=\($0)" }
+            return EmergencyResponse(success: true, message: msg)
+        }
+
+        // Fallback: include server body in message for diagnostics
+        let bodyString = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+        print("[APIService] <- Unrecognized response for /api/emergencias: \(bodyString)")
+        return EmergencyResponse(success: true, message: bodyString)
     }
 }
+
+

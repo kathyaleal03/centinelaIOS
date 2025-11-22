@@ -1,121 +1,265 @@
 import SwiftUI
 
 struct HomeView: View {
+    @StateObject private var alertsVM = AlertsViewModel()
+    @EnvironmentObject var reportsVM: ReportViewModel
+    @StateObject private var emergVM = EmergenciaViewModel()
+    @EnvironmentObject var authVM: AuthViewModel
+    @AppStorage("region") var userRegion: String = ""
+    @State private var showRanking = false
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Bienvenido")
-                            .font(.system(size: 36, weight: .bold))
-                        HStack {
-                            Text("a")
-                                .font(.system(size: 22))
-                            Text("Centinela")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(Color("AccentColor"))
-                        }
-                    }
-                    Spacer()
-
-                    // Illustration placeholder — replace with asset named "home_illustration" if available
-                    Image(systemName: "map.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 110, height: 110)
-                        .foregroundColor(Color.blue.opacity(0.8))
-                }
-                .padding(.horizontal)
-                .padding(.top, 10)
-
-                // Weather summary card
-                // Weather card navigates to detailed weather screen
-                NavigationLink(destination: WeatherDetailView()) {
-                    HStack {
-                        WeatherStatusView()
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(12)
-                            .padding(.horizontal)
-                    }
-                }
-
-                VStack(spacing: 18) {
-                    // First action card
-                    HStack {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Button(action: {
-                                // Placeholder action: navigate to Report screen in the app
-                                NotificationCenter.default.post(name: Notification.Name("OpenReport"), object: nil)
-                            }) {
-                                Text("Ingresar")
-                                    .font(.headline)
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 20)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
+            ZStack(alignment: .top) {
+                LinearGradient(colors: [Color(.systemGray6), Color(.systemGray5)], startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        // Header
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("CENTINELA")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                            HStack(spacing: 8) {
+                                if let name = authVM.user?.nombre, !name.isEmpty {
+                                    Text("Hola, \(name)")
+                                }
+                                Text(Date(), style: .date)
+                                    .foregroundColor(.secondary)
                             }
-
-                            Text("Realiza registros de los desastres naturales que encuentres en tu municipio")
-                                .foregroundColor(.white)
-                                .font(.subheadline)
-                                .lineLimit(3)
+                            .font(.subheadline)
                         }
-                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
 
-                        Spacer()
+                        // Weather summary
+                        NavigationLink(destination: WeatherDetailView()) {
+                            WeatherStatusView()
+                                .padding(16)
+                                .frame(maxWidth: .infinity)
+                                .background(CardBackground())
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay(SectionHeaderOverlay(icon: "thermometer.sun", title: "Clima Actual"))
+                                .padding(.horizontal)
+                        }
 
-                        // Right-side small illustration placeholder
-                        Image(systemName: "person.3.sequence.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.white.opacity(0.9))
-                            .padding(.trailing, 8)
-                    }
-                    .background(Color.blue.opacity(0.6))
-                    .cornerRadius(18)
-                    .shadow(radius: 4)
+                        // Risk levels
+                        VStack(alignment: .leading, spacing: 14) {
+                            SectionTitle(icon: "exclamationmark.triangle", title: "Niveles de Riesgo")
+                            HStack(spacing: 12) {
+                                legendPill(color: .green, text: "Verde")
+                                legendPill(color: .yellow, text: "Amarillo")
+                                legendPill(color: .orange, text: "Naranja")
+                                legendPill(color: .red, text: "Rojo")
+                            }
+                            Text("Indicadores operativos de la situación actual")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(16)
+                        .background(CardBackground())
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal)
 
-                    // Second action card
-                    HStack {
+                        // Metrics summary
+                        HStack(spacing: 16) {
+                            metricBlock(count: alertsVM.alertas.count, label: "Alertas", systemIcon: "bell.fill", color: .orange)
+                            metricBlock(count: reportsVM.reports.count, label: "Reportes", systemIcon: "doc.text.fill", color: .blue)
+                            metricBlock(count: emergVM.emergencias.count, label: "Emergencias", systemIcon: "phone.fill", color: .red)
+                        }
+                        .padding(.horizontal)
+
+                        // Recent vertical lists
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Localiza tus refugios")
-                                .foregroundColor(.white)
-                                .font(.headline)
+                            SectionTitle(icon: "clock.arrow.circlepath", title: "Actividad Reciente")
+                            recentList(title: "Últimas Alertas", items: latestAlerts())
+                            Divider()
+                            recentList(title: "Últimos Reportes", items: latestReports())
+                            Divider()
+                            recentList(title: "Últimas Emergencias", items: latestEmergencias())
+                        }
+                        .padding(16)
+                        .background(CardBackground())
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal)
 
-                            Button(action: {
-                                NotificationCenter.default.post(name: Notification.Name("OpenRefuges"), object: nil)
-                            }) {
-                                Text("Ver refugios")
-                                    .font(.headline)
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 18)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
+                        // Ranking access compact
+                        if !reportsVM.reports.isEmpty {
+                            NavigationLink(destination: UsersRankingView().environmentObject(reportsVM)) {
+                                HStack {
+                                    Image(systemName: "trophy.fill")
+                                        .font(.title3)
+                                        .foregroundColor(.yellow)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Ranking de Usuarios")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                        Text("Ver usuarios destacados")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(14)
+                                .frame(maxWidth: .infinity)
+                                .background(CardBackground())
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .padding(.horizontal)
                             }
                         }
-                        .padding()
 
-                        Spacer()
-
-                        Image(systemName: "house.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.white.opacity(0.9))
-                            .padding(.trailing, 8)
+                        Spacer(minLength: 12)
                     }
-                    .background(Color.blue.opacity(0.6))
-                    .cornerRadius(18)
-                    .shadow(radius: 4)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal)
-
-                Spacer()
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { Text("Inicio").font(.headline) }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showRanking = true }) { Image(systemName: "trophy") }
+                        .disabled(reportsVM.reports.isEmpty)
+                }
+            }
+            .sheet(isPresented: $showRanking) {
+                UsersRankingView()
+                    .environmentObject(reportsVM)
+                    .environmentObject(authVM)
+            }
         }
+        .onAppear {
+            alertsVM.loadAll()
+            reportsVM.fetchReports(token: nil)
+            emergVM.loadAll()
+        }
+    }
+}
+
+// MARK: - Helpers for HomeView UI
+extension HomeView {
+    func legendPill(color: Color, text: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(text).font(.caption).fontWeight(.medium)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color(.systemGray6))
+        .clipShape(Capsule())
+    }
+
+    func recentList(title: String, items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            if items.isEmpty {
+                Text("Sin datos")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(Array(items.prefix(5).enumerated()), id: \.0) { _, line in
+                    HStack(alignment: .top, spacing: 8) {
+                        Rectangle()
+                            .fill(Color.blue.opacity(0.25))
+                            .frame(width: 3)
+                            .cornerRadius(1)
+                        Text(line)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    func latestAlerts() -> [String] {
+        let regionModel = Region.from(name: userRegion) ?? .norte
+        let filtered = alertsVM.alertas.filter { $0.region?.regionId == regionModel.id }
+        return filtered.prefix(3).map { a in
+            var s = (a.titulo ?? "-")
+            if let nivel = a.nivel { s += " (\(nivel))" }
+            return s
+        }
+    }
+
+    func latestReports() -> [String] {
+        return reportsVM.reports.sorted(by: { a,b in
+            (a.fechaDate ?? Date.distantPast) > (b.fechaDate ?? Date.distantPast)
+        }).prefix(3).map { r in
+            let t = r.tipo
+            let short = String(r.descripcion.prefix(40))
+            return "\(t): \(short)"
+        }
+    }
+
+    func latestEmergencias() -> [String] {
+        return emergVM.emergencias.sorted(by: { a,b in
+            (a.createdAt ?? Date.distantPast) > (b.createdAt ?? Date.distantPast)
+        }).prefix(3).map { e in
+            let m = e.mensaje ?? "(sin mensaje)"
+            return String(m.prefix(60))
+        }
+    }
+
+    func metricBlock(count: Int, label: String, systemIcon: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: systemIcon)
+                    .foregroundColor(color)
+                Text(label)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Text("\(count)")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(14)
+        .background(CardBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    func SectionTitle(icon: String, title: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+        }
+    }
+}
+
+// MARK: - Visual helper views
+struct CardBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color(.systemBackground))
+            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+    }
+}
+
+struct SectionHeaderOverlay: View {
+    let icon: String
+    let title: String
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundColor(.blue)
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding(8)
     }
 }
 

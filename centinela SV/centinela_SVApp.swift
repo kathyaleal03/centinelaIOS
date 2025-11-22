@@ -3,22 +3,38 @@ import SwiftUI
 @main
 struct centinela_SVApp: App {
     @StateObject private var authVM = AuthViewModel()
+    @StateObject private var reportVM = ReportViewModel()
     @StateObject private var locationService = LocationService()
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding: Bool = false
     
     var body: some Scene {
         WindowGroup {
             Group {
-                if authVM.isAuthenticated {
-                    MainTabView()
-                        .environmentObject(authVM)
-                        .environmentObject(locationService)
-                } else {
+                if !hasSeenOnboarding {
+                    // Primera vez → mostrar onboarding
                     LoginView()
                         .environmentObject(authVM)
+                        .environmentObject(reportVM)
                         .environmentObject(locationService)
+                } else {
+                    // Después del onboarding
+                    if authVM.isAuthenticated {
+                        MainTabView()
+                            .environmentObject(authVM)
+                            .environmentObject(reportVM)
+                            .environmentObject(locationService)
+                    } else {
+                        // Usuario no autenticado → LoginView
+                        LoginView()
+                            .environmentObject(authVM)
+                            .environmentObject(reportVM)
+                            .environmentObject(locationService)
+                    }
                 }
             }
+
+            
             .onAppear {
                 // Request notification permission on app launch
                 NotificationManager.shared.requestAuthorizationAndRegister()

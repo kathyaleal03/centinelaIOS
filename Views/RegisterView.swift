@@ -38,7 +38,8 @@ struct RegisterView: View {
                         
                         Picker("Región", selection: $viewModel.region) {
                             ForEach([Region.norte, Region.sur, Region.este, Region.oeste], id: \ .id) { r in
-                                Text(r.nombre).tag(r)
+                                // Use the shortName so the picker shows only "Norte", "Sur", etc.
+                                Text(r.shortName).tag(r)
                             }
                         }
                         // Use a menu-style picker so long region names are visible instead of truncated segments

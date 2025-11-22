@@ -22,16 +22,30 @@ struct RegionAlertView: View {
                 Text("Sin alertas activas")
                     .foregroundColor(.gray)
             } else {
-                List(viewModel.alertas) { alerta in
-                    VStack(alignment: .leading) {
-                        Text(alerta.titulo ?? "-")
-                            .bold()
-                        Text(alerta.descripcion ?? "-")
-                        Text("Nivel: \(alerta.nivel ?? "-")")
-                            .foregroundColor(.red)
-                            .font(.subheadline)
+                // Filter alerts by selected region (match API region.regionId to Region.id)
+                let regionModel = Region.from(name: userRegion) ?? .norte
+                let filtered = viewModel.alertas.filter { $0.region?.regionId == regionModel.id }
+
+                if filtered.isEmpty {
+                    Text("No hay alertas para esta región")
+                        .foregroundColor(.secondary)
+                } else {
+                    List(filtered) { alerta in
+                        VStack(alignment: .leading) {
+                            Text(alerta.titulo ?? "-")
+                                .bold()
+                            Text(alerta.descripcion ?? "-")
+                            Text("Nivel: \(alerta.nivel ?? "-")")
+                                .foregroundColor(.red)
+                                .font(.subheadline)
+                        }
                     }
                 }
+            }
+            NavigationLink(destination: AlertsListView()) {
+                Text("Ver todas las alertas")
+                    .font(.subheadline)
+                    .padding(.vertical, 8)
             }
         }
         .onAppear {

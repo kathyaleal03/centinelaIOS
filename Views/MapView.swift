@@ -10,7 +10,7 @@ import MapKit
 
 struct MapViewWrapper: View {
     @EnvironmentObject var locationService: LocationService
-    @StateObject private var vm = ReportViewModel()
+    @EnvironmentObject var vm: ReportViewModel
     @EnvironmentObject var authVM: AuthViewModel
     
     @State private var region = MKCoordinateRegion(

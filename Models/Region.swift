@@ -9,6 +9,16 @@ struct Region: Codable, Identifiable, Equatable, Hashable {
     var longitud: Double?
 
     var displayName: String { nombre }
+
+    /// Short label used for compact UI (e.g. "Norte", "Sur")
+    var shortName: String {
+        // Try to use the last word of the full name (e.g. "Santa Ana Norte" -> "Norte").
+        let parts = nombre.split(separator: " ")
+        if let last = parts.last {
+            return String(last)
+        }
+        return nombre
+    }
 }
 
 // Helper local con opciones por defecto (puedes cargar desde API en tiempo de ejecución)
